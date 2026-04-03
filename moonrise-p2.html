@@ -222,6 +222,14 @@
       background: rgba(255, 255, 255, 0.08);
     }
 
+    button:focus-visible,
+    input[type="range"]:focus-visible,
+    a:focus-visible {
+      outline: 3px solid #9fc0ff;
+      outline-offset: 2px;
+      box-shadow: 0 0 0 4px rgba(159, 192, 255, 0.2);
+    }
+
     button.primary {
       background: linear-gradient(180deg, rgba(216, 186, 78, 0.94), rgba(176, 140, 36, 0.94));
       border-color: rgba(255, 228, 143, 0.3);
@@ -304,6 +312,13 @@
     .explainer {
       margin: 0;
       color: #e6ebff;
+    }
+
+    .shortcut-hint {
+      margin: 0;
+      font-family: Helvetica, Arial, sans-serif;
+      font-size: 12px;
+      color: rgba(213, 225, 255, 0.82);
     }
 
     .error-banner {
@@ -403,6 +418,7 @@
             <button type="button" id="playButton" class="primary">▶ Play</button>
             <button type="button" id="todayButton">Today</button>
           </div>
+          <p class="shortcut-hint">Keyboard: ← previous day · → next day · Space play/pause · T today.</p>
         </div>
 
         <div class="detail-panel">
@@ -1321,6 +1337,26 @@
       window.addEventListener("resize", () => {
         resizeCanvas();
         render();
+      });
+      window.addEventListener("keydown", (event) => {
+        const activeTag = document.activeElement ? document.activeElement.tagName : "";
+        if (activeTag === "INPUT" || activeTag === "TEXTAREA" || activeTag === "SELECT" || (document.activeElement && document.activeElement.isContentEditable)) {
+          return;
+        }
+
+        if (event.key === "ArrowLeft") {
+          if (state.playing) stopPlayback();
+          setOffsetDays(state.offsetDays - 1);
+        } else if (event.key === "ArrowRight") {
+          if (state.playing) stopPlayback();
+          setOffsetDays(state.offsetDays + 1);
+        } else if (event.key === " " || event.code === "Space") {
+          event.preventDefault();
+          startPlayback();
+        } else if (event.key.toLowerCase() === "t") {
+          state.todayReference = new Date();
+          setOffsetDays(0);
+        }
       });
     }
 

@@ -226,6 +226,14 @@
       box-shadow: 0 10px 22px rgba(0, 0, 0, 0.06);
     }
 
+    button:focus-visible,
+    input[type="range"]:focus-visible,
+    a:focus-visible {
+      outline: 3px solid #2f5bd2;
+      outline-offset: 2px;
+      box-shadow: 0 0 0 4px rgba(47, 91, 210, 0.18);
+    }
+
     button:active {
       transform: translateY(0);
     }
@@ -348,6 +356,13 @@
       color: var(--muted);
     }
 
+    .shortcut-hint {
+      margin: 0;
+      font-family: Helvetica, Arial, sans-serif;
+      font-size: 12px;
+      color: #5c5c55;
+    }
+
     @media (max-width: 640px) {
       main {
         padding: 18px 14px 32px;
@@ -443,6 +458,7 @@
           <button type="button" id="todayButton">Today</button>
           <span class="legend-note">Play advances one day at a time until it reaches the edge of the one-year window.</span>
         </div>
+        <p class="shortcut-hint">Keyboard: ← previous day · → next day · Space play/pause · T today.</p>
 
         <div class="status-grid">
           <canvas id="phaseCanvas" width="76" height="76" aria-label="Moon phase indicator"></canvas>
@@ -1372,6 +1388,26 @@
       window.addEventListener("resize", () => {
         resizeCanvas();
         render();
+      });
+      window.addEventListener("keydown", (event) => {
+        const activeTag = document.activeElement ? document.activeElement.tagName : "";
+        if (activeTag === "INPUT" || activeTag === "TEXTAREA" || activeTag === "SELECT" || (document.activeElement && document.activeElement.isContentEditable)) {
+          return;
+        }
+
+        if (event.key === "ArrowLeft") {
+          if (state.playing) stopPlayback();
+          setOffsetDays(state.offsetDays - 1);
+        } else if (event.key === "ArrowRight") {
+          if (state.playing) stopPlayback();
+          setOffsetDays(state.offsetDays + 1);
+        } else if (event.key === " " || event.code === "Space") {
+          event.preventDefault();
+          startPlayback();
+        } else if (event.key.toLowerCase() === "t") {
+          state.todayReference = new Date();
+          setOffsetDays(0);
+        }
       });
     }
 

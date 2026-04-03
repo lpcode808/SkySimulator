@@ -37,6 +37,21 @@ Both pages use the same astronomy idea:
 - `ASTRONOMY-REF.md` — astronomy notes and formulas behind the app
 - `LEARNING-DESIGN-REVIEW.md` — extra design notes kept in the repo
 
+## Quick Code Map (single-file friendly)
+
+Both app pages are intentionally single-file so they can still be copy/pasted into simple hosts (including Google Sites style workflows).
+
+When editing either HTML page:
+
+- **Intro + controls markup**: search for `<section class="app-shell">`
+- **Look and feel (CSS)**: in the top `<style>` block
+- **Keyboard + button wiring**: search for `function bindEvents()`
+- **Main teaching copy updates**: search for `function updateCopy(data)`
+- **Astronomy calculations**: search for `function getMoonDataForDate`
+- **Canvas drawing**: search for `renderHorizonView` / `renderOrbitalView`
+
+This keeps local opening and GitHub Pages deployment simple while still making the file easier to navigate.
+
 ## How To Run It Locally
 
 ### Easiest option
