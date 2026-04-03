@@ -102,6 +102,12 @@
       font-family: Helvetica, Arial, sans-serif;
     }
 
+    .toolbar-actions {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+    }
+
     .view-pill {
       display: inline-flex;
       align-items: center;
@@ -388,6 +394,25 @@
         grid-template-columns: 1fr;
         justify-items: start;
       }
+
+      body.mobile-focus .app-shell {
+        overflow: visible;
+      }
+
+      body.mobile-focus .controls {
+        position: sticky;
+        bottom: 0;
+        z-index: 12;
+        border-top: 1px solid rgba(204, 204, 198, 0.95);
+        box-shadow: 0 -14px 22px rgba(0, 0, 0, 0.08);
+      }
+
+      body.mobile-focus .learning-panel,
+      body.mobile-focus .status-grid,
+      body.mobile-focus .shortcut-hint,
+      body.mobile-focus .explainer {
+        display: none;
+      }
     }
   </style>
 </head>
@@ -409,7 +434,10 @@
     <section class="app-shell" aria-label="Moonrise scientific app">
       <div class="canvas-toolbar">
         <span class="view-pill" id="viewBadge">Horizon panorama</span>
-        <button type="button" id="viewToggle" class="subtle">Switch view</button>
+        <div class="toolbar-actions">
+          <button type="button" id="mobileFocusToggle" class="subtle">Mobile focus: Off</button>
+          <button type="button" id="viewToggle" class="subtle">Switch view</button>
+        </div>
       </div>
 
       <div class="canvas-frame">
@@ -499,6 +527,7 @@
       currentDate: new Date(),
       view: "horizon",
       focusMode: "rise",
+      mobileFocus: false,
       playing: false,
       layout: { width: 780, height: 420, dpr: Math.max(1, window.devicePixelRatio || 1) },
       frameHandle: null,
@@ -511,6 +540,7 @@
       phaseCanvas: document.getElementById("phaseCanvas"),
       phaseCtx: document.getElementById("phaseCanvas").getContext("2d"),
       viewBadge: document.getElementById("viewBadge"),
+      mobileFocusToggle: document.getElementById("mobileFocusToggle"),
       viewToggle: document.getElementById("viewToggle"),
       focusRise: document.getElementById("focusRise"),
       focusNow: document.getElementById("focusNow"),
@@ -1221,6 +1251,8 @@
       dom.dateLabel.textContent = dateFormatter.format(data.currentDate);
       dom.scrubberDelta.textContent = formatOffsetLabel(state.offsetDays);
       dom.viewBadge.textContent = state.view === "horizon" ? "Horizon panorama" : "Top-down orbital";
+      dom.mobileFocusToggle.textContent = "Mobile focus: " + (state.mobileFocus ? "On" : "Off");
+      dom.mobileFocusToggle.setAttribute("aria-pressed", String(state.mobileFocus));
       dom.playButton.textContent = state.playing ? "❚❚ Pause" : "▶ Play";
       dom.focusRise.classList.toggle("active", state.focusMode === "rise");
       dom.focusNow.classList.toggle("active", state.focusMode === "now");
@@ -1284,9 +1316,22 @@
 
     // === App lifecycle ========================================================
 
+    function isPortraitMobile() {
+      return window.innerWidth <= 700 && window.innerHeight > window.innerWidth;
+    }
+
+    function applyMobileFocusClass() {
+      document.body.classList.toggle("mobile-focus", state.mobileFocus && isPortraitMobile());
+    }
+
     function resizeCanvas() {
-      const width = Math.min(window.innerWidth - 44, 780);
-      const height = Math.round(Math.max(320, width * 0.53));
+      const sidePadding = window.innerWidth <= 640 ? 30 : 44;
+      const width = Math.min(window.innerWidth - sidePadding, 780);
+      let height = Math.round(Math.max(280, width * 0.53));
+      if (isPortraitMobile()) {
+        const viewportBudget = Math.round(window.innerHeight * (state.mobileFocus ? 0.58 : 0.5));
+        height = Math.min(height, Math.max(220, viewportBudget));
+      }
       const dpr = Math.max(1, window.devicePixelRatio || 1);
 
       state.layout = { width, height, dpr };
@@ -1307,6 +1352,13 @@
 
     function toggleView() {
       state.view = state.view === "horizon" ? "orbital" : "horizon";
+      render();
+    }
+
+    function toggleMobileFocus() {
+      state.mobileFocus = !state.mobileFocus;
+      applyMobileFocusClass();
+      resizeCanvas();
       render();
     }
 
@@ -1371,6 +1423,7 @@
     }
 
     function bindEvents() {
+      dom.mobileFocusToggle.addEventListener("click", toggleMobileFocus);
       dom.viewToggle.addEventListener("click", toggleView);
       dom.focusRise.addEventListener("click", () => setFocusMode("rise"));
       dom.focusNow.addEventListener("click", () => setFocusMode("now"));
@@ -1386,6 +1439,7 @@
         setOffsetDays(Number(event.target.value));
       });
       window.addEventListener("resize", () => {
+        applyMobileFocusClass();
         resizeCanvas();
         render();
       });
@@ -1412,6 +1466,7 @@
     }
 
     function init() {
+      applyMobileFocusClass();
       resizeCanvas();
       bindEvents();
       state.currentDate = makeCurrentDate();

@@ -122,6 +122,24 @@
       backdrop-filter: blur(10px);
     }
 
+    #mobileFocusToggle {
+      position: absolute;
+      top: 32px;
+      left: 32px;
+      appearance: none;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.42);
+      color: rgba(255, 255, 255, 0.78);
+      padding: 8px 14px;
+      font-family: Helvetica, Arial, sans-serif;
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      cursor: pointer;
+      backdrop-filter: blur(10px);
+    }
+
     .controls {
       display: grid;
       gap: 14px;
@@ -348,9 +366,32 @@
         right: 26px;
       }
 
+      #mobileFocusToggle {
+        top: 26px;
+        left: 26px;
+      }
+
       #dateLabel {
         min-width: 0;
         flex: 1 1 100%;
+      }
+
+      body.mobile-focus .app-shell {
+        overflow: visible;
+      }
+
+      body.mobile-focus .controls {
+        position: sticky;
+        bottom: 0;
+        z-index: 14;
+        padding-bottom: max(12px, env(safe-area-inset-bottom));
+        background: linear-gradient(180deg, rgba(5, 8, 18, 0.12), rgba(5, 8, 18, 0.98) 24%);
+      }
+
+      body.mobile-focus .learning-panel,
+      body.mobile-focus .detail-panel,
+      body.mobile-focus .shortcut-hint {
+        display: none;
       }
     }
   </style>
@@ -373,6 +414,7 @@
     <section class="app-shell" aria-label="Moonrise immersive app">
       <div class="canvas-wrap">
         <canvas id="mainCanvas" width="900" height="500" aria-label="Immersive moonrise visualization"></canvas>
+        <button type="button" id="mobileFocusToggle" aria-pressed="false">Mobile focus: Off</button>
         <button type="button" id="viewToggle">⬤ Horizon</button>
       </div>
 
@@ -455,6 +497,7 @@
       currentDate: new Date(),
       view: "horizon",
       focusMode: "rise",
+      mobileFocus: false,
       playing: false,
       layout: { width: 900, height: 500, dpr: Math.max(1, window.devicePixelRatio || 1) },
       frameHandle: null,
@@ -466,6 +509,7 @@
     const dom = {
       canvas: document.getElementById("mainCanvas"),
       ctx: document.getElementById("mainCanvas").getContext("2d"),
+      mobileFocusToggle: document.getElementById("mobileFocusToggle"),
       viewToggle: document.getElementById("viewToggle"),
       focusRise: document.getElementById("focusRise"),
       focusNow: document.getElementById("focusNow"),
@@ -1173,6 +1217,8 @@
 
       dom.dateLabel.textContent = dateFormatter.format(data.currentDate);
       dom.scrubberDelta.textContent = formatOffsetLabel(state.offsetDays);
+      dom.mobileFocusToggle.textContent = "Mobile focus: " + (state.mobileFocus ? "On" : "Off");
+      dom.mobileFocusToggle.setAttribute("aria-pressed", String(state.mobileFocus));
       dom.viewToggle.textContent = state.view === "horizon" ? "⬤ Horizon" : "◎ Orbital";
       dom.playButton.textContent = state.playing ? "❚❚ Pause" : "▶ Play";
       dom.focusRise.classList.toggle("active", state.focusMode === "rise");
@@ -1231,9 +1277,22 @@
 
     // === App lifecycle ========================================================
 
+    function isPortraitMobile() {
+      return window.innerWidth <= 760 && window.innerHeight > window.innerWidth;
+    }
+
+    function applyMobileFocusClass() {
+      document.body.classList.toggle("mobile-focus", state.mobileFocus && isPortraitMobile());
+    }
+
     function resizeCanvas() {
-      const width = Math.min(window.innerWidth - 40, 900);
-      const height = Math.round(Math.max(420, width * 0.55));
+      const sidePadding = window.innerWidth <= 700 ? 24 : 40;
+      const width = Math.min(window.innerWidth - sidePadding, 900);
+      let height = Math.round(Math.max(320, width * 0.55));
+      if (isPortraitMobile()) {
+        const viewportBudget = Math.round(window.innerHeight * (state.mobileFocus ? 0.62 : 0.54));
+        height = Math.min(height, Math.max(250, viewportBudget));
+      }
       const dpr = Math.max(1, window.devicePixelRatio || 1);
 
       state.layout = { width, height, dpr };
@@ -1257,6 +1316,13 @@
 
     function toggleView() {
       state.view = state.view === "horizon" ? "orbital" : "horizon";
+      render();
+    }
+
+    function toggleMobileFocus() {
+      state.mobileFocus = !state.mobileFocus;
+      applyMobileFocusClass();
+      resizeCanvas();
       render();
     }
 
@@ -1320,6 +1386,7 @@
     }
 
     function bindEvents() {
+      dom.mobileFocusToggle.addEventListener("click", toggleMobileFocus);
       dom.viewToggle.addEventListener("click", toggleView);
       dom.focusRise.addEventListener("click", () => setFocusMode("rise"));
       dom.focusNow.addEventListener("click", () => setFocusMode("now"));
@@ -1335,6 +1402,7 @@
         setOffsetDays(Number(event.target.value));
       });
       window.addEventListener("resize", () => {
+        applyMobileFocusClass();
         resizeCanvas();
         render();
       });
@@ -1361,6 +1429,7 @@
     }
 
     function init() {
+      applyMobileFocusClass();
       resizeCanvas();
       bindEvents();
       state.currentDate = makeCurrentDate();
