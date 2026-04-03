@@ -89,3 +89,53 @@ If GitHub Pages is enabled for the repository root, the expected links are:
 - The only external dependency is SunCalc v1.9.0 from cdnjs.
 - Offline use after the first successful load depends on the browser caching that CDN script.
 - The observer location is currently fixed to Waimanalo, Hawaiʻi.
+
+## Mobile Strategy (portrait-first)
+
+Yes — a mobile version is absolutely possible, and this project is already close because both pages are single-file and have a basic mobile media query.
+
+The strategic decision is to ship in **two layers**:
+
+1. **Responsive baseline (must-have)**
+   - Keep one code path per page and make layout adapt to small portrait screens.
+   - Prioritize learning flow over parity with desktop chrome (fewer visible controls at once is fine).
+   - Preserve astronomy correctness and date-scrubbing as the core interaction.
+
+2. **Mode-specific optimization (nice-to-have)**
+   - Add a dedicated compact mobile mode for immersive interactions when needed.
+   - Keep scientific and immersive pages distinct, but share common interaction rules and sizing tokens.
+
+### Why portrait feels hard (and what to do)
+
+- The canvas competes with controls for vertical space.
+- Horizon visuals are naturally wide, but phones are narrow.
+- Scrubber + status + explanatory text can push key visuals below the fold.
+
+Recommended mitigation:
+
+- Use a fixed viewport budget on phones (for example ~45–55vh for the main canvas region).
+- Move secondary text into collapsible panels ("What to notice", "Moon phase details").
+- Keep primary controls sticky at the bottom (Prev / Next / Play / Today + scrubber).
+- Reduce simultaneous UI density rather than shrinking everything.
+
+### Implementation roadmap
+
+**Phase A — responsive hardening (lowest risk)**
+- Expand mobile breakpoints for button sizing, spacing, and typography.
+- Introduce canvas presets by breakpoint (desktop/tablet/phone).
+- Reorder DOM sections on phone so users see: canvas → date controls → key insight → details.
+
+**Phase B — mobile interaction polish**
+- Add touch-first affordances (larger hit targets, swipe day-to-day).
+- Add "quick jump" dates (new moon, full moon, ±14 days).
+- Optionally support haptic-friendly micro-steps for scrubber adjustments.
+
+**Phase C — optional dedicated mobile mode**
+- Add a "Mobile focus mode" toggle that hides non-essential chrome.
+- Keep mode state in URL params (`?mode=mobile-focus`) so links are shareable.
+
+### Product guardrails
+
+- Do not fork astronomy logic by device.
+- Keep one source of truth for date state and Moon data.
+- Treat mobile as a constrained teaching surface, not a compressed desktop clone.
