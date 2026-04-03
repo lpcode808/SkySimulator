@@ -1,0 +1,1388 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Moonrise — Scientific Diagram View</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/suncalc/1.9.0/suncalc.min.js"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f8f8f5;
+      --panel: #ffffff;
+      --panel-border: #d9d9d4;
+      --text: #2d2d2d;
+      --muted: #6f6f68;
+      --accent: #c8a000;
+      --accent-cool: #5070b0;
+      --soft: #ecece7;
+      --line: #cccccc;
+      --shadow: rgba(0, 0, 0, 0.06);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 15px;
+      line-height: 1.5;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top, rgba(255, 255, 255, 0.95), rgba(248, 248, 245, 0.96)),
+        linear-gradient(180deg, #fdfdfb, #f3f2eb);
+      min-height: 100vh;
+    }
+
+    main {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 24px 20px 40px;
+    }
+
+    .hero {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .eyebrow {
+      font-family: Helvetica, Arial, sans-serif;
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 4vw, 3.2rem);
+      line-height: 1.04;
+      font-weight: 600;
+    }
+
+    .lede {
+      margin: 0;
+      max-width: 62ch;
+      color: #44443d;
+    }
+
+    .top-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 4px;
+      font-family: Helvetica, Arial, sans-serif;
+      font-size: 13px;
+    }
+
+    .top-links a {
+      color: #394f88;
+      text-decoration: none;
+      border-bottom: 1px solid rgba(57, 79, 136, 0.25);
+    }
+
+    .app-shell {
+      background: rgba(255, 255, 255, 0.84);
+      border: 1px solid var(--panel-border);
+      border-radius: 18px;
+      box-shadow: 0 16px 40px rgba(34, 34, 26, 0.08);
+      overflow: hidden;
+      backdrop-filter: blur(12px);
+    }
+
+    .canvas-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 18px 8px;
+      font-family: Helvetica, Arial, sans-serif;
+    }
+
+    .view-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: var(--soft);
+      color: #4d4d46;
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .canvas-frame {
+      padding: 0 18px;
+    }
+
+    canvas#mainCanvas {
+      display: block;
+      width: 100%;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      background: linear-gradient(180deg, #ffffff, #fafafa);
+    }
+
+    .controls {
+      display: grid;
+      gap: 14px;
+      padding: 18px;
+      border-top: 1px solid rgba(204, 204, 198, 0.85);
+      background: linear-gradient(180deg, rgba(250, 250, 247, 0.96), rgba(244, 244, 239, 0.96));
+    }
+
+    .control-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .learning-panel {
+      display: grid;
+      gap: 12px;
+      padding: 14px 16px;
+      background: #fcfcfa;
+      border: 1px solid #dbdbd6;
+      border-radius: 14px;
+    }
+
+    .learning-kicker,
+    .focus-label {
+      font-family: Helvetica, Arial, sans-serif;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .learning-copy {
+      display: grid;
+      gap: 6px;
+    }
+
+    .learning-copy p,
+    .focus-note {
+      margin: 0;
+      color: #44443d;
+    }
+
+    .focus-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .focus-buttons {
+      display: inline-flex;
+      gap: 8px;
+      padding: 4px;
+      border-radius: 999px;
+      background: #f1f1ed;
+      border: 1px solid #d8d8d2;
+    }
+
+    button.focus-toggle {
+      padding: 8px 12px;
+      font-size: 13px;
+      box-shadow: none;
+      background: transparent;
+      border-color: transparent;
+    }
+
+    button.focus-toggle.active {
+      background: #ffffff;
+      border-color: #c9c9c2;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    .date-nav {
+      justify-content: center;
+    }
+
+    button {
+      appearance: none;
+      border: 1px solid #c9c9c2;
+      border-radius: 999px;
+      background: #ffffff;
+      color: #2f2f2a;
+      font: inherit;
+      font-family: Helvetica, Arial, sans-serif;
+      font-size: 14px;
+      padding: 10px 16px;
+      cursor: pointer;
+      transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.04);
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      border-color: #b6b6af;
+      box-shadow: 0 10px 22px rgba(0, 0, 0, 0.06);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    button.primary {
+      background: linear-gradient(180deg, #f7e7a4, #e4c958);
+      border-color: #d5bc57;
+    }
+
+    button.subtle {
+      background: #f1f1ed;
+    }
+
+    #dateLabel {
+      min-width: 240px;
+      text-align: center;
+      font-family: Helvetica, Arial, sans-serif;
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+    }
+
+    .scrubber-wrap {
+      display: grid;
+      gap: 8px;
+    }
+
+    .scrubber-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      font-family: Helvetica, Arial, sans-serif;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    input[type="range"] {
+      width: 100%;
+      appearance: none;
+      height: 7px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #dcdcd5, #c8a000, #dcdcd5);
+      outline: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #fdf7d3;
+      border: 2px solid #856f00;
+      box-shadow: 0 0 0 4px rgba(200, 160, 0, 0.12);
+      cursor: pointer;
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #fdf7d3;
+      border: 2px solid #856f00;
+      box-shadow: 0 0 0 4px rgba(200, 160, 0, 0.12);
+      cursor: pointer;
+    }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 16px;
+      align-items: center;
+      padding: 14px 16px;
+      background: #fcfcfa;
+      border: 1px solid #dbdbd6;
+      border-radius: 14px;
+    }
+
+    #phaseCanvas {
+      width: 76px;
+      height: 76px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, #f8f8ef, #ece9d4);
+    }
+
+    .status-copy {
+      display: grid;
+      gap: 4px;
+    }
+
+    .status-line {
+      font-family: Helvetica, Arial, sans-serif;
+      font-size: 13px;
+      color: #44443e;
+    }
+
+    .status-line strong {
+      font-size: 15px;
+      color: #262621;
+    }
+
+    .explainer {
+      margin: 0;
+      color: #403f39;
+    }
+
+    .error-banner {
+      display: none;
+      margin-top: 16px;
+      padding: 12px 14px;
+      border: 1px solid #deb2b2;
+      background: #fff4f4;
+      border-radius: 12px;
+      font-family: Helvetica, Arial, sans-serif;
+      color: #6e2929;
+    }
+
+    .legend-note {
+      font-family: Helvetica, Arial, sans-serif;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    @media (max-width: 640px) {
+      main {
+        padding: 18px 14px 32px;
+      }
+
+      .canvas-toolbar,
+      .canvas-frame,
+      .controls {
+        padding-left: 14px;
+        padding-right: 14px;
+      }
+
+      .date-nav {
+        justify-content: stretch;
+      }
+
+      #dateLabel {
+        min-width: 0;
+        flex: 1 1 100%;
+      }
+
+      .status-grid {
+        grid-template-columns: 1fr;
+        justify-items: start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="hero" aria-label="Project introduction">
+      <div class="eyebrow">Moonrise · Phase 1</div>
+      <h1>Why does the Moon rise in a different place every night?</h1>
+      <p class="lede">
+        Drag the date, and the Moon's rise point visibly migrates north and south along the horizon.
+        This is the clear, diagrammatic version: equal parts planetarium graphic and explorable explanation.
+      </p>
+      <div class="top-links">
+        <a href="./moonrise-p2.html">Open the immersive yard-at-dusk version</a>
+        <a href="https://cdnjs.cloudflare.com/ajax/libs/suncalc/1.9.0/suncalc.min.js">SunCalc v1.9.0 CDN</a>
+      </div>
+    </section>
+
+    <section class="app-shell" aria-label="Moonrise scientific app">
+      <div class="canvas-toolbar">
+        <span class="view-pill" id="viewBadge">Horizon panorama</span>
+        <button type="button" id="viewToggle" class="subtle">Switch view</button>
+      </div>
+
+      <div class="canvas-frame">
+        <canvas id="mainCanvas" width="780" height="420" aria-label="Moonrise visualization"></canvas>
+      </div>
+
+      <div class="controls">
+        <div class="learning-panel" aria-label="Learning prompt">
+          <div class="learning-copy">
+            <div class="learning-kicker">Start here</div>
+            <p id="learningInstruction">
+              Drag the date and watch where the Moon rises on the horizon. Notice when that rise point reaches its farthest north and farthest south.
+            </p>
+          </div>
+
+          <div class="focus-row">
+            <span class="focus-label">Focus</span>
+            <div class="focus-buttons" role="group" aria-label="Observation focus">
+              <button type="button" id="focusRise" class="focus-toggle active" aria-pressed="true">Moonrise</button>
+              <button type="button" id="focusNow" class="focus-toggle" aria-pressed="false">Right now</button>
+            </div>
+          </div>
+
+          <p class="focus-note" id="focusNote">
+            Moonrise focus keeps the lesson centered on where the Moon comes up.
+          </p>
+        </div>
+
+        <div class="control-row date-nav">
+          <button type="button" id="prevDay">← Prev</button>
+          <div id="dateLabel" aria-live="polite">Loading…</div>
+          <button type="button" id="nextDay">Next →</button>
+        </div>
+
+        <div class="scrubber-wrap">
+          <input type="range" id="dayScrubber" min="-365" max="365" step="1" value="0" aria-label="Date scrubber">
+          <div class="scrubber-meta">
+            <span>One year earlier</span>
+            <span id="scrubberDelta">Today</span>
+            <span>One year later</span>
+          </div>
+        </div>
+
+        <div class="control-row">
+          <button type="button" id="playButton" class="primary">▶ Play</button>
+          <button type="button" id="todayButton">Today</button>
+          <span class="legend-note">Play advances one day at a time until it reaches the edge of the one-year window.</span>
+        </div>
+
+        <div class="status-grid">
+          <canvas id="phaseCanvas" width="76" height="76" aria-label="Moon phase indicator"></canvas>
+          <div class="status-copy">
+            <div class="status-line"><strong id="phaseHeadline">Moon phase</strong></div>
+            <div class="status-line" id="phaseDetail">Computing illumination…</div>
+            <div class="status-line" id="riseSetDetail">Computing rise and set data…</div>
+          </div>
+        </div>
+
+        <p class="explainer" id="explainer">
+          The Moon's rise point is a moving target: over the course of the month it slides north and south because the Moon's path across the sky is tilted.
+        </p>
+      </div>
+    </section>
+
+    <div id="errorBanner" class="error-banner" role="alert">
+      SunCalc did not load, so the astronomy engine is unavailable right now. This page is designed to work on GitHub Pages or as a plain static file once the CDN script has loaded successfully.
+    </div>
+  </main>
+
+  <script>
+    // === Constants and state ==================================================
+
+    const OBSERVER = {
+      lat: 21.3069,
+      lng: -157.7111
+    };
+
+    const MS_PER_DAY = 86400000;
+    const SCRUBBER_MIN = -365;
+    const SCRUBBER_MAX = 365;
+    const HISTORY_DAYS = 14;
+
+    const state = {
+      todayReference: new Date(),
+      offsetDays: 0,
+      currentDate: new Date(),
+      view: "horizon",
+      focusMode: "rise",
+      playing: false,
+      layout: { width: 780, height: 420, dpr: Math.max(1, window.devicePixelRatio || 1) },
+      frameHandle: null,
+      lastFrameTime: 0
+    };
+
+    const dom = {
+      canvas: document.getElementById("mainCanvas"),
+      ctx: document.getElementById("mainCanvas").getContext("2d"),
+      phaseCanvas: document.getElementById("phaseCanvas"),
+      phaseCtx: document.getElementById("phaseCanvas").getContext("2d"),
+      viewBadge: document.getElementById("viewBadge"),
+      viewToggle: document.getElementById("viewToggle"),
+      focusRise: document.getElementById("focusRise"),
+      focusNow: document.getElementById("focusNow"),
+      prevDay: document.getElementById("prevDay"),
+      nextDay: document.getElementById("nextDay"),
+      playButton: document.getElementById("playButton"),
+      todayButton: document.getElementById("todayButton"),
+      scrubber: document.getElementById("dayScrubber"),
+      dateLabel: document.getElementById("dateLabel"),
+      scrubberDelta: document.getElementById("scrubberDelta"),
+      phaseHeadline: document.getElementById("phaseHeadline"),
+      phaseDetail: document.getElementById("phaseDetail"),
+      riseSetDetail: document.getElementById("riseSetDetail"),
+      focusNote: document.getElementById("focusNote"),
+      explainer: document.getElementById("explainer"),
+      errorBanner: document.getElementById("errorBanner")
+    };
+
+    // === Formatting helpers ===================================================
+
+    const dateFormatter = new Intl.DateTimeFormat("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      year: "numeric"
+    });
+
+    const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit"
+    });
+
+    const timeFormatter = new Intl.DateTimeFormat("en-US", {
+      hour: "numeric",
+      minute: "2-digit"
+    });
+
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+
+    function round(value, digits = 0) {
+      const scale = 10 ** digits;
+      return Math.round(value * scale) / scale;
+    }
+
+    function dayAnchorFrom(date) {
+      return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0, 0);
+    }
+
+    function azToBearing(azimuthRadians) {
+      return (azimuthRadians * 180 / Math.PI + 180 + 360) % 360;
+    }
+
+    function bearingToX(bearing, width) {
+      return (bearing / 360) * width;
+    }
+
+    function altitudeToY(altitude, stripY, maxArcHeight) {
+      return stripY - (altitude / (Math.PI / 2)) * maxArcHeight;
+    }
+
+    function formatOffsetLabel(offsetDays) {
+      if (offsetDays === 0) return "Today";
+      if (offsetDays === 1) return "1 day later";
+      if (offsetDays === -1) return "1 day earlier";
+      if (offsetDays > 0) return offsetDays + " days later";
+      return Math.abs(offsetDays) + " days earlier";
+    }
+
+    function bearingToCompass(deg) {
+      const dirs = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+      return dirs[Math.round(deg / 22.5) % 16];
+    }
+
+    function getPhaseName(phase) {
+      if (phase < 0.03 || phase > 0.97) return "New Moon";
+      if (phase < 0.22) return "Waxing Crescent";
+      if (phase < 0.28) return "First Quarter";
+      if (phase < 0.47) return "Waxing Gibbous";
+      if (phase < 0.53) return "Full Moon";
+      if (phase < 0.72) return "Waning Gibbous";
+      if (phase < 0.78) return "Last Quarter";
+      return "Waning Crescent";
+    }
+
+    function cardinalFromEastOffset(offset) {
+      const abs = Math.abs(offset);
+      if (abs < 0.5) return "almost exactly due East";
+      const side = offset < 0 ? "north of due East" : "south of due East";
+      return abs.toFixed(1) + "° " + side;
+    }
+
+    function describeMigration(prevBearing, currentBearing, nextBearing) {
+      if (
+        prevBearing == null ||
+        currentBearing == null ||
+        nextBearing == null
+      ) {
+        return "hard to classify because a nearby rise event is missing";
+      }
+
+      const northward = nextBearing < currentBearing;
+      const atNorthExtreme = currentBearing <= prevBearing && currentBearing <= nextBearing;
+      const atSouthExtreme = currentBearing >= prevBearing && currentBearing >= nextBearing;
+
+      if (atNorthExtreme) return "near its northernmost point in this monthly swing";
+      if (atSouthExtreme) return "near its southernmost point in this monthly swing";
+      return northward ? "still migrating north along the horizon" : "still migrating south along the horizon";
+    }
+
+    function describeMoonAboveHorizon(altitude, bearing) {
+      const compass = bearingToCompass(bearing);
+      const altitudeDeg = round(altitude * 180 / Math.PI, 1);
+      if (altitude >= 0) {
+        return "Right now the Moon is " + altitudeDeg + "° above the horizon toward " + compass + ".";
+      }
+      return "Right now the Moon is " + Math.abs(altitudeDeg) + "° below the horizon beneath " + compass + ".";
+    }
+
+    // === Astronomy helpers ====================================================
+
+    function makeCurrentDate() {
+      return new Date(state.todayReference.getTime() + state.offsetDays * MS_PER_DAY);
+    }
+
+    function getMoonDataForDate(date) {
+      const anchoredDay = dayAnchorFrom(date);
+      const moonTimes = SunCalc.getMoonTimes(anchoredDay, OBSERVER.lat, OBSERVER.lng);
+      const moonIllumination = SunCalc.getMoonIllumination(date);
+      const moonPosition = SunCalc.getMoonPosition(date, OBSERVER.lat, OBSERVER.lng);
+      const sunPosition = SunCalc.getPosition(date, OBSERVER.lat, OBSERVER.lng);
+
+      const riseTime = moonTimes.rise instanceof Date ? moonTimes.rise : null;
+      const setTime = moonTimes.set instanceof Date ? moonTimes.set : null;
+      const risePosition = riseTime ? SunCalc.getMoonPosition(riseTime, OBSERVER.lat, OBSERVER.lng) : null;
+      const setPosition = setTime ? SunCalc.getMoonPosition(setTime, OBSERVER.lat, OBSERVER.lng) : null;
+      const riseBearing = risePosition ? azToBearing(risePosition.azimuth) : null;
+      const setBearing = setPosition ? azToBearing(setPosition.azimuth) : null;
+
+      return {
+        anchoredDay,
+        moonTimes,
+        moonIllumination,
+        moonPosition,
+        sunPosition,
+        riseTime,
+        setTime,
+        riseBearing,
+        setBearing
+      };
+    }
+
+    function getFocusContext(data) {
+      const riseAvailable =
+        !data.moonTimes.alwaysUp &&
+        !data.moonTimes.alwaysDown &&
+        data.riseTime instanceof Date &&
+        data.riseBearing != null;
+
+      const useRise = state.focusMode === "rise" && riseAvailable;
+      const focusDate = useRise ? data.riseTime : data.currentDate;
+      const focusPosition = SunCalc.getMoonPosition(focusDate, OBSERVER.lat, OBSERVER.lng);
+
+      return {
+        mode: useRise ? "rise" : "now",
+        riseAvailable,
+        date: focusDate,
+        position: focusPosition
+      };
+    }
+
+    function getNearbyRiseBearing(date, dayOffset) {
+      const nearbyDate = new Date(date.getTime() + dayOffset * MS_PER_DAY);
+      const data = getMoonDataForDate(nearbyDate);
+      return data.riseBearing;
+    }
+
+    function computeArcSamples(riseTime, setTime, width, stripY, maxArcHeight) {
+      if (!(riseTime instanceof Date) || !(setTime instanceof Date) || setTime <= riseTime) {
+        return [];
+      }
+
+      const steps = 64;
+      let wrapOffset = 0;
+      let previousBearing = null;
+      const points = [];
+
+      for (let index = 0; index <= steps; index += 1) {
+        const time = new Date(riseTime.getTime() + (setTime - riseTime) * (index / steps));
+        const position = SunCalc.getMoonPosition(time, OBSERVER.lat, OBSERVER.lng);
+        if (position.altitude < 0) continue;
+
+        const bearing = azToBearing(position.azimuth);
+        if (previousBearing != null) {
+          const delta = bearing - previousBearing;
+          if (delta > 180) wrapOffset -= 360;
+          if (delta < -180) wrapOffset += 360;
+        }
+        previousBearing = bearing;
+
+        const unwrappedBearing = bearing + wrapOffset;
+        points.push({
+          time,
+          bearing,
+          unwrappedBearing,
+          x: bearingToX(unwrappedBearing, width),
+          y: altitudeToY(position.altitude, stripY, maxArcHeight),
+          altitude: position.altitude
+        });
+      }
+
+      return points;
+    }
+
+    function sampleArcValue(points, date) {
+      if (!points.length) return null;
+
+      const target = date.getTime();
+      let best = points[0];
+      let bestDiff = Math.abs(points[0].time.getTime() - target);
+      for (const point of points) {
+        const diff = Math.abs(point.time.getTime() - target);
+        if (diff < bestDiff) {
+          best = point;
+          bestDiff = diff;
+        }
+      }
+      return best;
+    }
+
+    // === Drawing helpers ======================================================
+
+    function sampleEllipseArc(cx, cy, rx, ry, start, end, steps = 36) {
+      const points = [];
+      const delta = (end - start) / steps;
+      for (let index = 0; index <= steps; index += 1) {
+        const angle = start + delta * index;
+        points.push({
+          x: cx + rx * Math.cos(angle),
+          y: cy + ry * Math.sin(angle)
+        });
+      }
+      return points;
+    }
+
+    function drawMoonDisc(ctx, cx, cy, radius, phase, options = {}) {
+      const litColor = options.litColor || "#ffffcc";
+      const darkColor = options.darkColor || "#1a1a1a";
+      const strokeColor = options.strokeColor || "rgba(0, 0, 0, 0.35)";
+      const rotation = options.rotation || 0;
+      const glowColor = options.glowColor || null;
+      const glowAlpha = options.glowAlpha || 0;
+
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(rotation);
+
+      if (glowColor && glowAlpha > 0) {
+        for (let ring = 3; ring >= 1; ring -= 1) {
+          ctx.beginPath();
+          ctx.arc(0, 0, radius + ring * 4, 0, Math.PI * 2);
+          ctx.fillStyle = glowColor.replace("ALPHA", String(glowAlpha / (ring * 1.9)));
+          ctx.fill();
+        }
+      }
+
+      ctx.beginPath();
+      ctx.arc(0, 0, radius, 0, Math.PI * 2);
+      ctx.fillStyle = darkColor;
+      ctx.fill();
+
+      const normalizedPhase = ((phase % 1) + 1) % 1;
+      const rx = Math.max(0.001, Math.abs(Math.cos(normalizedPhase * Math.PI * 2)) * radius);
+      const waxing = normalizedPhase <= 0.5;
+      const gibbous = normalizedPhase >= 0.25 && normalizedPhase <= 0.75;
+
+      const outline = [];
+
+      if (waxing) {
+        outline.push(...sampleEllipseArc(0, 0, radius, radius, -Math.PI / 2, Math.PI / 2, 48));
+        if (gibbous) {
+          outline.push(...sampleEllipseArc(0, 0, rx, radius, Math.PI / 2, 3 * Math.PI / 2, 48));
+        } else {
+          outline.push(...sampleEllipseArc(0, 0, rx, radius, Math.PI / 2, -Math.PI / 2, 48));
+        }
+      } else {
+        outline.push(...sampleEllipseArc(0, 0, radius, radius, -Math.PI / 2, -3 * Math.PI / 2, 48));
+        if (gibbous) {
+          outline.push(...sampleEllipseArc(0, 0, rx, radius, Math.PI / 2, -Math.PI / 2, 48));
+        } else {
+          outline.push(...sampleEllipseArc(0, 0, rx, radius, Math.PI / 2, 3 * Math.PI / 2, 48));
+        }
+      }
+
+      if (outline.length) {
+        ctx.beginPath();
+        ctx.moveTo(outline[0].x, outline[0].y);
+        for (const point of outline.slice(1)) {
+          ctx.lineTo(point.x, point.y);
+        }
+        ctx.closePath();
+        ctx.fillStyle = litColor;
+        ctx.fill();
+      }
+
+      ctx.beginPath();
+      ctx.arc(0, 0, radius, 0, Math.PI * 2);
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = strokeColor;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawWrappedPath(ctx, points, width) {
+      if (!points.length) return;
+      const shifts = [-width, 0, width];
+
+      for (const shift of shifts) {
+        ctx.beginPath();
+        points.forEach((point, index) => {
+          const x = point.x + shift;
+          if (index === 0) ctx.moveTo(x, point.y);
+          else ctx.lineTo(x, point.y);
+        });
+        ctx.stroke();
+      }
+    }
+
+    function drawWrappedDot(ctx, baseX, y, radius, color, width) {
+      [-width, 0, width].forEach((shift) => {
+        const x = baseX + shift;
+        if (x < -radius - 8 || x > width + radius + 8) return;
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+      });
+    }
+
+    function drawFocusHalo(ctx, baseX, y, width, color) {
+      [-width, 0, width].forEach((shift) => {
+        const x = baseX + shift;
+        if (x < -30 || x > width + 30) return;
+        ctx.beginPath();
+        ctx.arc(x, y, 16, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(x, y, 12, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      });
+    }
+
+    function drawCompassTicks(ctx, stripY, stripHeight, width) {
+      ctx.save();
+      ctx.strokeStyle = "#cccccc";
+      ctx.lineWidth = 1;
+      ctx.fillStyle = "#7f7f78";
+      ctx.font = "11px Helvetica, Arial, sans-serif";
+      ctx.textAlign = "center";
+
+      for (let degrees = 0; degrees <= 360; degrees += 10) {
+        const x = bearingToX(degrees, width);
+        const tickTop = degrees % 30 === 0 ? stripY - stripHeight / 2 - 11 : stripY - stripHeight / 2 - 7;
+        ctx.beginPath();
+        ctx.moveTo(x, stripY - stripHeight / 2);
+        ctx.lineTo(x, tickTop);
+        ctx.stroke();
+      }
+
+      const labels = [
+        { label: "N", bearing: 0 },
+        { label: "NE", bearing: 45 },
+        { label: "E", bearing: 90 },
+        { label: "SE", bearing: 135 },
+        { label: "S", bearing: 180 },
+        { label: "SW", bearing: 225 },
+        { label: "W", bearing: 270 },
+        { label: "NW", bearing: 315 },
+        { label: "N", bearing: 360 }
+      ];
+
+      labels.forEach(({ label, bearing }) => {
+        ctx.fillText(label, bearingToX(bearing, width), stripY - stripHeight / 2 - 18);
+      });
+      ctx.restore();
+    }
+
+    function drawMarker(ctx, x, y, radius, color, label, width) {
+      const shifts = [-width, 0, width];
+      ctx.save();
+      ctx.textAlign = "center";
+      ctx.font = "12px Helvetica, Arial, sans-serif";
+
+      for (const shift of shifts) {
+        const drawX = x + shift;
+        if (drawX < -28 || drawX > width + 28) continue;
+        ctx.beginPath();
+        ctx.arc(drawX, y, radius, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "#ffffff";
+        ctx.stroke();
+        ctx.fillStyle = "#363630";
+        ctx.fillText(label, drawX, y - radius - 14);
+      }
+      ctx.restore();
+    }
+
+    // === View renderers =======================================================
+
+    function renderHorizonView(ctx, data) {
+      const width = state.layout.width;
+      const height = state.layout.height;
+      const stripY = height * 0.66;
+      const stripHeight = 42;
+      const maxArcHeight = Math.min(168, height * 0.4);
+      const focus = getFocusContext(data);
+
+      ctx.clearRect(0, 0, width, height);
+
+      const bgGradient = ctx.createLinearGradient(0, 0, 0, height);
+      bgGradient.addColorStop(0, "#ffffff");
+      bgGradient.addColorStop(1, "#f7f7f4");
+      ctx.fillStyle = bgGradient;
+      ctx.fillRect(0, 0, width, height);
+
+      ctx.fillStyle = "#f0f0f0";
+      ctx.fillRect(0, stripY - stripHeight / 2, width, stripHeight);
+      ctx.strokeStyle = "#cccccc";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(0, stripY - stripHeight / 2, width, stripHeight);
+
+      drawCompassTicks(ctx, stripY, stripHeight, width);
+
+      [90, 270].forEach((bearing) => {
+        const x = bearingToX(bearing, width);
+        ctx.save();
+        ctx.setLineDash([6, 6]);
+        ctx.strokeStyle = "#c6c6c2";
+        ctx.beginPath();
+        ctx.moveTo(x, 40);
+        ctx.lineTo(x, height - 58);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = "#7a7a72";
+        ctx.font = "12px Helvetica, Arial, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(bearing === 90 ? "Due East" : "Due West", x, height - 34);
+        ctx.restore();
+      });
+
+      if (!data.moonTimes.alwaysDown && !data.moonTimes.alwaysUp && data.riseBearing != null && data.setBearing != null) {
+        for (let daysAgo = HISTORY_DAYS; daysAgo >= 1; daysAgo -= 1) {
+          const previousRise = getNearbyRiseBearing(data.anchoredDay, -daysAgo);
+          if (previousRise == null) continue;
+          const alpha = 0.08 + (HISTORY_DAYS - daysAgo) / HISTORY_DAYS * 0.5;
+          drawWrappedDot(
+            ctx,
+            bearingToX(previousRise, width),
+            stripY,
+            4,
+            "rgba(200, 160, 0, " + alpha.toFixed(3) + ")",
+            width
+          );
+        }
+      }
+
+      const arcPoints = computeArcSamples(data.riseTime, data.setTime, width, stripY, maxArcHeight);
+      if (arcPoints.length) {
+        ctx.save();
+        ctx.strokeStyle = "rgba(200, 160, 0, 0.82)";
+        ctx.lineWidth = 2;
+        drawWrappedPath(ctx, arcPoints, width);
+        ctx.restore();
+      }
+
+      if (data.riseBearing != null) {
+        if (focus.mode === "rise") {
+          drawFocusHalo(ctx, bearingToX(data.riseBearing, width), stripY, width, "rgba(200, 160, 0, 0.18)");
+        }
+        drawMarker(
+          ctx,
+          bearingToX(data.riseBearing, width),
+          stripY,
+          focus.mode === "rise" ? 9 : 8,
+          "#c8a000",
+          "Rise " + Math.round(data.riseBearing) + "°",
+          width
+        );
+      }
+
+      if (data.setBearing != null) {
+        drawMarker(
+          ctx,
+          bearingToX(data.setBearing, width),
+          stripY,
+          8,
+          "#6080c0",
+          "Set " + Math.round(data.setBearing) + "°",
+          width
+        );
+      }
+
+      const currentBearing = azToBearing(data.moonPosition.azimuth);
+      const currentOnArc = sampleArcValue(arcPoints, data.currentDate);
+
+      if (focus.mode === "now" && data.moonPosition.altitude >= 0) {
+        const dotY = currentOnArc ? currentOnArc.y : altitudeToY(data.moonPosition.altitude, stripY, maxArcHeight);
+        const dotX = currentOnArc ? currentOnArc.x : bearingToX(currentBearing, width);
+        const shifts = [-width, 0, width];
+        shifts.forEach((shift) => {
+          const x = dotX + shift;
+          if (x < -28 || x > width + 28) return;
+          ctx.beginPath();
+          ctx.arc(x, dotY, 7, 0, Math.PI * 2);
+          ctx.fillStyle = "#222222";
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(x, dotY, 4.2, 0, Math.PI * 2);
+          ctx.fillStyle = "#fff6c4";
+          ctx.fill();
+        });
+      } else if (focus.mode === "rise" && data.moonPosition.altitude >= 0) {
+        const dotY = currentOnArc ? currentOnArc.y : altitudeToY(data.moonPosition.altitude, stripY, maxArcHeight);
+        const dotX = currentOnArc ? currentOnArc.x : bearingToX(currentBearing, width);
+        const shifts = [-width, 0, width];
+        shifts.forEach((shift) => {
+          const x = dotX + shift;
+          if (x < -20 || x > width + 20) return;
+          ctx.beginPath();
+          ctx.arc(x, dotY, 4, 0, Math.PI * 2);
+          ctx.fillStyle = "rgba(61, 61, 56, 0.48)";
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(x, dotY, 2.5, 0, Math.PI * 2);
+          ctx.fillStyle = "rgba(255, 246, 196, 0.52)";
+          ctx.fill();
+        });
+      } else if (focus.mode === "now") {
+        const x = bearingToX(currentBearing, width);
+        ctx.save();
+        ctx.textAlign = "center";
+        ctx.fillStyle = "rgba(40, 40, 35, 0.65)";
+        ctx.font = "16px Helvetica, Arial, sans-serif";
+        ctx.fillText("↓", x, stripY + 30);
+        ctx.beginPath();
+        ctx.arc(x, stripY, 5, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(55, 55, 48, 0.35)";
+        ctx.fill();
+        ctx.restore();
+      }
+
+      ctx.fillStyle = "#55554f";
+      ctx.font = "13px Helvetica, Arial, sans-serif";
+      ctx.textAlign = "left";
+      const eastOffset = data.riseBearing != null ? data.riseBearing - 90 : 0;
+      let infoLabel = "Moonrise geometry unavailable for this date.";
+      if (data.moonTimes.alwaysUp) infoLabel = "Moon above the horizon all day from this location.";
+      else if (data.moonTimes.alwaysDown) infoLabel = "Moon stays below the horizon all day from this location.";
+      else if (data.riseBearing != null && focus.mode === "rise") {
+        infoLabel = "Moonrise focus: track this point as it slides " + cardinalFromEastOffset(eastOffset) + ".";
+      } else if (data.riseBearing != null) {
+        infoLabel = "Moon rises " + cardinalFromEastOffset(eastOffset) + ".";
+      }
+      ctx.fillText(infoLabel, 16, height - 14);
+    }
+
+    function renderOrbitalView(ctx, data) {
+      const width = state.layout.width;
+      const height = state.layout.height;
+      const centerX = width * 0.42;
+      const centerY = height * 0.53;
+      const orbitRadius = Math.min(width, height) * 0.27;
+      const moonRadius = Math.max(10, orbitRadius * 0.085);
+      const earthRadius = Math.max(20, orbitRadius * 0.16);
+      const focus = getFocusContext(data);
+
+      ctx.clearRect(0, 0, width, height);
+
+      const bg = ctx.createLinearGradient(0, 0, 0, height);
+      bg.addColorStop(0, "#ffffff");
+      bg.addColorStop(1, "#f5f5f1");
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, width, height);
+
+      ctx.save();
+      ctx.setLineDash([8, 8]);
+      ctx.strokeStyle = "#d1d1cd";
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, orbitRadius, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.fillStyle = "#7b7b76";
+      ctx.font = "13px Helvetica, Arial, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("Moon's orbit (29.5 days)", centerX, centerY - orbitRadius - 18);
+
+      const sunX = width - 88;
+      const sunY = centerY - 8;
+      const phase = data.moonIllumination.phase;
+      const moonAngle = phase * Math.PI * 2;
+      const moonX = centerX + orbitRadius * Math.cos(moonAngle);
+      const moonY = centerY - orbitRadius * Math.sin(moonAngle);
+
+      ctx.beginPath();
+      ctx.moveTo(centerX, centerY);
+      ctx.lineTo(moonX, moonY);
+      ctx.strokeStyle = "#bdbdb8";
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(centerX, centerY);
+      ctx.lineTo(sunX - 30, sunY);
+      ctx.strokeStyle = "rgba(255, 187, 0, 0.8)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.fillStyle = "#ad8100";
+      ctx.font = "16px Helvetica, Arial, sans-serif";
+      ctx.fillText("Sunlight →", width - 138, sunY - 12);
+
+      ctx.beginPath();
+      ctx.arc(sunX, sunY, 24, 0, Math.PI * 2);
+      const sunGradient = ctx.createRadialGradient(sunX, sunY, 4, sunX, sunY, 34);
+      sunGradient.addColorStop(0, "#fff2ad");
+      sunGradient.addColorStop(1, "rgba(255, 204, 0, 0.2)");
+      ctx.fillStyle = sunGradient;
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(sunX, sunY, 16, 0, Math.PI * 2);
+      ctx.fillStyle = "#ffcc00";
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, earthRadius, 0, Math.PI * 2);
+      ctx.fillStyle = "#2244aa";
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(centerX - 4, centerY - 5, earthRadius * 0.65, 0.6, 3.4);
+      ctx.lineWidth = 6;
+      ctx.strokeStyle = "rgba(88, 190, 112, 0.76)";
+      ctx.stroke();
+
+      ctx.fillStyle = "#2f2f2b";
+      ctx.font = "14px Helvetica, Arial, sans-serif";
+      ctx.fillText("Earth", centerX, centerY + earthRadius + 24);
+
+      drawMoonDisc(ctx, moonX, moonY, moonRadius, phase, {
+        litColor: "#ffffcc",
+        darkColor: "#1a1a1a",
+        strokeColor: "rgba(0, 0, 0, 0.45)"
+      });
+
+      ctx.fillStyle = "#4a4a45";
+      ctx.font = "13px Helvetica, Arial, sans-serif";
+      ctx.fillText(getPhaseName(phase), moonX, moonY + moonRadius + 20);
+
+      const angleLabel = Math.round(((moonAngle + Math.PI * 2) % (Math.PI * 2)) * 180 / Math.PI);
+      ctx.fillStyle = "#6e6e69";
+      ctx.font = "12px Helvetica, Arial, sans-serif";
+      ctx.textAlign = "left";
+      const orbitalCaption = focus.mode === "rise"
+        ? "Moonrise focus: use this angle to explain why the rise point shifts."
+        : "Right now focus: this shows the Moon's current sky geometry.";
+      ctx.fillText("Earth → Moon angle: " + angleLabel + "°", 28, height - 42);
+      ctx.fillText(orbitalCaption, 28, height - 22);
+    }
+
+    function renderPhaseIndicator(data) {
+      const ctx = dom.phaseCtx;
+      const width = dom.phaseCanvas.width;
+      const height = dom.phaseCanvas.height;
+      ctx.clearRect(0, 0, width, height);
+      const gradient = ctx.createRadialGradient(width * 0.35, height * 0.35, 3, width / 2, height / 2, width / 2);
+      gradient.addColorStop(0, "#f8f5e6");
+      gradient.addColorStop(1, "#e6e0c1");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, width, height);
+
+      drawMoonDisc(ctx, width / 2, height / 2, 25, data.moonIllumination.phase, {
+        litColor: "#fff6cb",
+        darkColor: "#171717",
+        strokeColor: "rgba(20, 20, 20, 0.7)"
+      });
+    }
+
+    // === UI updates ===========================================================
+
+    function updateCopy(data) {
+      const focus = getFocusContext(data);
+      const phaseName = getPhaseName(data.moonIllumination.phase);
+      const illuminatedPct = Math.round(data.moonIllumination.fraction * 100);
+      const riseCompass = data.riseBearing != null ? bearingToCompass(data.riseBearing) : "—";
+      const setCompass = data.setBearing != null ? bearingToCompass(data.setBearing) : "—";
+
+      dom.dateLabel.textContent = dateFormatter.format(data.currentDate);
+      dom.scrubberDelta.textContent = formatOffsetLabel(state.offsetDays);
+      dom.viewBadge.textContent = state.view === "horizon" ? "Horizon panorama" : "Top-down orbital";
+      dom.playButton.textContent = state.playing ? "❚❚ Pause" : "▶ Play";
+      dom.focusRise.classList.toggle("active", state.focusMode === "rise");
+      dom.focusNow.classList.toggle("active", state.focusMode === "now");
+      dom.focusRise.setAttribute("aria-pressed", String(state.focusMode === "rise"));
+      dom.focusNow.setAttribute("aria-pressed", String(state.focusMode === "now"));
+      dom.focusNote.textContent = state.focusMode === "rise" && !focus.riseAvailable
+        ? "Moonrise data is unavailable on this date, so the view temporarily falls back to Right now."
+        : focus.mode === "rise"
+          ? "Moonrise focus keeps the lesson centered on where the Moon comes up."
+          : "Right now focus shows the Moon's sky position at the selected time. Switch back to Moonrise to follow the main pattern.";
+      dom.phaseHeadline.textContent = phaseName + " · " + illuminatedPct + "% illuminated";
+      dom.phaseDetail.textContent = focus.mode === "rise"
+        ? "Moonrise is the primary teaching target. Phase is supporting context: " + phaseName + ", " + illuminatedPct + "% illuminated."
+        : "Moon phase: " + phaseName + " with " + illuminatedPct + "% of the disc lit.";
+
+      if (data.moonTimes.alwaysUp) {
+        dom.riseSetDetail.textContent = "Moon is above the horizon all day from Waimanalo.";
+      } else if (data.moonTimes.alwaysDown) {
+        dom.riseSetDetail.textContent = "Moon stays below the horizon all day from Waimanalo.";
+      } else {
+        const riseTimeText = data.riseTime ? timeFormatter.format(data.riseTime) : "—";
+        const setTimeText = data.setTime ? timeFormatter.format(data.setTime) : "—";
+        dom.riseSetDetail.textContent =
+          "Rises: " + riseTimeText + " at " + (data.riseBearing != null ? Math.round(data.riseBearing) + "° " + riseCompass : "—") +
+          " · Sets: " + setTimeText + " at " + (data.setBearing != null ? Math.round(data.setBearing) + "° " + setCompass : "—");
+      }
+
+      const previousRiseBearing = getNearbyRiseBearing(data.anchoredDay, -1);
+      const nextRiseBearing = getNearbyRiseBearing(data.anchoredDay, 1);
+      const migration = describeMigration(previousRiseBearing, data.riseBearing, nextRiseBearing);
+      const eastOffset = data.riseBearing != null ? data.riseBearing - 90 : null;
+
+      let riseSentence = "Rise data is unavailable for this date.";
+      if (data.moonTimes.alwaysUp) riseSentence = "The Moon never drops below the horizon today from this location.";
+      else if (data.moonTimes.alwaysDown) riseSentence = "The Moon never clears the horizon today from this location.";
+      else if (data.riseBearing != null) {
+        if (focus.mode === "rise") {
+          riseSentence =
+            "Moonrise focus: on " + dateFormatter.format(data.currentDate) + ", the Moon rises at " +
+            timeFormatter.format(data.riseTime) + " at " + Math.round(data.riseBearing) + "° (" +
+            riseCompass + "), " + cardinalFromEastOffset(eastOffset) + ".";
+        } else {
+          riseSentence =
+            "On " + dateFormatter.format(data.currentDate) + ", the Moon rises at " +
+            timeFormatter.format(data.riseTime) + " at " + Math.round(data.riseBearing) + "° (" +
+            riseCompass + "), " + cardinalFromEastOffset(eastOffset) + ".";
+        }
+      }
+
+      if (focus.mode === "rise") {
+        dom.explainer.textContent =
+          riseSentence + " As you drag the date, watch this rise point move. It is " + migration +
+          ". Use Right now only when you want to inspect the Moon's current sky position.";
+      } else {
+        dom.explainer.textContent =
+          riseSentence + " The Moon is in its " + phaseName + " phase, " + illuminatedPct +
+          "% illuminated, and its rising point is " + migration + ". " +
+          describeMoonAboveHorizon(data.moonPosition.altitude, azToBearing(data.moonPosition.azimuth));
+      }
+    }
+
+    // === App lifecycle ========================================================
+
+    function resizeCanvas() {
+      const width = Math.min(window.innerWidth - 44, 780);
+      const height = Math.round(Math.max(320, width * 0.53));
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+
+      state.layout = { width, height, dpr };
+
+      dom.canvas.style.width = width + "px";
+      dom.canvas.style.height = height + "px";
+      dom.canvas.width = Math.round(width * dpr);
+      dom.canvas.height = Math.round(height * dpr);
+      dom.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    function setOffsetDays(nextOffset) {
+      state.offsetDays = clamp(nextOffset, SCRUBBER_MIN, SCRUBBER_MAX);
+      state.currentDate = makeCurrentDate();
+      dom.scrubber.value = String(state.offsetDays);
+      render();
+    }
+
+    function toggleView() {
+      state.view = state.view === "horizon" ? "orbital" : "horizon";
+      render();
+    }
+
+    function setFocusMode(nextMode) {
+      state.focusMode = nextMode;
+      render();
+    }
+
+    function stopPlayback() {
+      state.playing = false;
+      state.lastFrameTime = 0;
+      if (state.frameHandle) {
+        cancelAnimationFrame(state.frameHandle);
+        state.frameHandle = null;
+      }
+      render();
+    }
+
+    function startPlayback() {
+      if (state.playing) {
+        stopPlayback();
+        return;
+      }
+
+      state.playing = true;
+
+      const tick = (timestamp) => {
+        if (!state.playing) return;
+        if (!state.lastFrameTime) state.lastFrameTime = timestamp;
+
+        if (timestamp - state.lastFrameTime >= 33) {
+          if (state.offsetDays >= SCRUBBER_MAX) {
+            stopPlayback();
+            return;
+          }
+          state.lastFrameTime = timestamp;
+          setOffsetDays(state.offsetDays + 1);
+        }
+
+        state.frameHandle = requestAnimationFrame(tick);
+      };
+
+      render();
+      state.frameHandle = requestAnimationFrame(tick);
+    }
+
+    function render() {
+      if (!window.SunCalc) {
+        dom.errorBanner.style.display = "block";
+        return;
+      }
+
+      dom.errorBanner.style.display = "none";
+      const data = getMoonDataForDate(state.currentDate);
+      data.currentDate = state.currentDate;
+
+      if (state.view === "horizon") renderHorizonView(dom.ctx, data);
+      else renderOrbitalView(dom.ctx, data);
+
+      renderPhaseIndicator(data);
+      updateCopy(data);
+    }
+
+    function bindEvents() {
+      dom.viewToggle.addEventListener("click", toggleView);
+      dom.focusRise.addEventListener("click", () => setFocusMode("rise"));
+      dom.focusNow.addEventListener("click", () => setFocusMode("now"));
+      dom.prevDay.addEventListener("click", () => setOffsetDays(state.offsetDays - 1));
+      dom.nextDay.addEventListener("click", () => setOffsetDays(state.offsetDays + 1));
+      dom.playButton.addEventListener("click", startPlayback);
+      dom.todayButton.addEventListener("click", () => {
+        state.todayReference = new Date();
+        setOffsetDays(0);
+      });
+      dom.scrubber.addEventListener("input", (event) => {
+        if (state.playing) stopPlayback();
+        setOffsetDays(Number(event.target.value));
+      });
+      window.addEventListener("resize", () => {
+        resizeCanvas();
+        render();
+      });
+    }
+
+    function init() {
+      resizeCanvas();
+      bindEvents();
+      state.currentDate = makeCurrentDate();
+      render();
+    }
+
+    init();
+  </script>
+</body>
+</html>
