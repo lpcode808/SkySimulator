@@ -221,6 +221,28 @@
       border-color: rgba(255, 255, 255, 0.18);
     }
 
+    .goal-strip {
+      display: grid;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .goal-line {
+      margin: 0;
+      font-family: Helvetica, Arial, sans-serif;
+      font-size: 12px;
+      color: #e5ecff;
+    }
+
+    .jump-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
     button {
       appearance: none;
       border: 1px solid rgba(255, 255, 255, 0.14);
@@ -438,6 +460,16 @@
           <p class="focus-note" id="focusNote">
             Moonrise focus keeps the lesson centered on where the Moon comes up.
           </p>
+
+          <div class="goal-strip">
+            <p class="goal-line" id="goalLine" aria-live="polite">
+              Goal: compare where the Moon rises tonight vs. tomorrow.
+            </p>
+            <div class="jump-buttons">
+              <button type="button" id="jumpNorth">Jump to northern extreme</button>
+              <button type="button" id="jumpSouth">Jump to southern extreme</button>
+            </div>
+          </div>
         </div>
 
         <div class="control-panel">
@@ -460,7 +492,7 @@
             <button type="button" id="playButton" class="primary">▶ Play</button>
             <button type="button" id="todayButton">Today</button>
           </div>
-          <p class="shortcut-hint">Keyboard: ← previous day · → next day · Space play/pause · T today.</p>
+          <p class="shortcut-hint">Keyboard: ← previous day · → next day · Space play/pause · T today · N northern extreme · S southern extreme.</p>
         </div>
 
         <div class="detail-panel">
@@ -524,6 +556,9 @@
       phaseDetail: document.getElementById("phaseDetail"),
       riseSetDetail: document.getElementById("riseSetDetail"),
       focusNote: document.getElementById("focusNote"),
+      goalLine: document.getElementById("goalLine"),
+      jumpNorth: document.getElementById("jumpNorth"),
+      jumpSouth: document.getElementById("jumpSouth"),
       explainer: document.getElementById("explainer"),
       errorBanner: document.getElementById("errorBanner")
     };
@@ -753,6 +788,27 @@
     function getNearbyRiseBearing(date, dayOffset) {
       const nearbyDate = new Date(date.getTime() + dayOffset * MS_PER_DAY);
       return getMoonDataForDate(nearbyDate).riseBearing;
+    }
+
+    function findExtremeOffset(startOffset, direction) {
+      const scanRadius = 32;
+      let best = null;
+      for (let delta = -scanRadius; delta <= scanRadius; delta += 1) {
+        const candidateOffset = clamp(startOffset + delta, SCRUBBER_MIN, SCRUBBER_MAX);
+        const candidateDate = new Date(state.todayReference.getTime() + candidateOffset * MS_PER_DAY);
+        const candidate = getMoonDataForDate(candidateDate);
+        if (candidate.riseBearing == null) continue;
+        if (!best) {
+          best = { offset: candidateOffset, bearing: candidate.riseBearing };
+          continue;
+        }
+        if (direction === "north" && candidate.riseBearing < best.bearing) {
+          best = { offset: candidateOffset, bearing: candidate.riseBearing };
+        } else if (direction === "south" && candidate.riseBearing > best.bearing) {
+          best = { offset: candidateOffset, bearing: candidate.riseBearing };
+        }
+      }
+      return best;
     }
 
     function computeArcSamples(riseTime, setTime, width, horizonY, maxArcHeight) {
@@ -1273,12 +1329,35 @@
         ? riseSentence + " As you drag the date, keep watching that horizon point. In this part of the cycle it is " + migration + "."
         : riseSentence + " In this part of the cycle it is " + migration +
           ", which is why the glowing arc shifts along the silhouetted horizon.";
+
+      const dayDelta = data.riseBearing != null && previousRiseBearing != null
+        ? round(data.riseBearing - previousRiseBearing, 1)
+        : null;
+      dom.goalLine.setAttribute("aria-live", state.playing ? "off" : "polite");
+      if (focus.mode === "now") {
+        dom.goalLine.textContent = "Goal: switch to Moonrise focus when you want to compare horizon migration day by day.";
+      } else if (data.riseBearing == null) {
+        dom.goalLine.textContent = "Goal: rise data is unavailable on this date. Try a nearby date.";
+      } else if (dayDelta == null || Math.abs(dayDelta) < 0.1) {
+        dom.goalLine.textContent = "Goal: compare tonight with tomorrow to spot how the rise point begins to drift.";
+      } else if (dayDelta < 0) {
+        dom.goalLine.textContent = "Goal: the rise point moved " + Math.abs(dayDelta) + "° north since yesterday. Keep stepping to find the northern extreme.";
+      } else {
+        dom.goalLine.textContent = "Goal: the rise point moved " + dayDelta + "° south since yesterday. Keep stepping to find the southern extreme.";
+      }
     }
 
     // === App lifecycle ========================================================
 
+    function getViewportHeight() {
+      if (window.visualViewport && typeof window.visualViewport.height === "number") {
+        return Math.round(window.visualViewport.height);
+      }
+      return window.innerHeight;
+    }
+
     function isPortraitMobile() {
-      return window.innerWidth <= 760 && window.innerHeight > window.innerWidth;
+      return window.innerWidth <= 760 && getViewportHeight() > window.innerWidth;
     }
 
     function applyMobileFocusClass() {
@@ -1287,10 +1366,10 @@
 
     function resizeCanvas() {
       const sidePadding = window.innerWidth <= 700 ? 24 : 40;
-      const width = Math.min(window.innerWidth - sidePadding, 900);
+      const width = Math.max(300, Math.min(window.innerWidth - sidePadding, 900));
       let height = Math.round(Math.max(320, width * 0.55));
       if (isPortraitMobile()) {
-        const viewportBudget = Math.round(window.innerHeight * (state.mobileFocus ? 0.62 : 0.54));
+        const viewportBudget = Math.round(getViewportHeight() * (state.mobileFocus ? 0.62 : 0.54));
         height = Math.min(height, Math.max(250, viewportBudget));
       }
       const dpr = Math.max(1, window.devicePixelRatio || 1);
@@ -1329,6 +1408,14 @@
     function setFocusMode(nextMode) {
       state.focusMode = nextMode;
       render();
+    }
+
+    function jumpToExtreme(direction) {
+      const best = findExtremeOffset(state.offsetDays, direction);
+      if (!best) return;
+      if (state.playing) stopPlayback();
+      state.focusMode = "rise";
+      setOffsetDays(best.offset);
     }
 
     function stopPlayback() {
@@ -1390,6 +1477,8 @@
       dom.viewToggle.addEventListener("click", toggleView);
       dom.focusRise.addEventListener("click", () => setFocusMode("rise"));
       dom.focusNow.addEventListener("click", () => setFocusMode("now"));
+      dom.jumpNorth.addEventListener("click", () => jumpToExtreme("north"));
+      dom.jumpSouth.addEventListener("click", () => jumpToExtreme("south"));
       dom.prevDay.addEventListener("click", () => setOffsetDays(state.offsetDays - 1));
       dom.nextDay.addEventListener("click", () => setOffsetDays(state.offsetDays + 1));
       dom.playButton.addEventListener("click", startPlayback);
@@ -1421,6 +1510,10 @@
         } else if (event.key === " " || event.code === "Space") {
           event.preventDefault();
           startPlayback();
+        } else if (event.key.toLowerCase() === "n") {
+          jumpToExtreme("north");
+        } else if (event.key.toLowerCase() === "s") {
+          jumpToExtreme("south");
         } else if (event.key.toLowerCase() === "t") {
           state.todayReference = new Date();
           setOffsetDays(0);
